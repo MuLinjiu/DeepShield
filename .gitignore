@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# 模型文件和checkpoint（非常大，不要上传）
+lora-*/
+*.bin
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+checkpoint-*/
+
+# 训练日志
+*.log
+training.log
+*.out
+
+# 数据文件（很大，不要上传到GitHub）
+data/processed/*.jsonl
+data/*.jsonl
+*.jsonl
+data/cpu_*.jsonl
+
+# 保留示例数据结构
+!data/sample_*.jsonl
+
+# HuggingFace缓存
+.cache/
+transformers_cache/
+huggingface/
+
+# 临时文件
+*.tmp
+*.temp
+*~
+.DS_Store
+*.swp
+*.swo
+
+# 测试输出
+test_output/
+output/
+results/
+
+# 系统文件
+Thumbs.db
+.directory
+
+# PyTorch
+lightning_logs/
+wandb/
+
+# 其他大文件
+*.tar
+*.tar.gz
+*.zip
+*.h5
+*.hdf5
+
+# 环境配置（包含敏感信息）
+.env
+.env.local
+
+# 项目特定
+PROJECT_STATUS.txt

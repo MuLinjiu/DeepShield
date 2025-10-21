@@ -1,0 +1,58 @@
+{
+  "flow_id": 7,
+  "tuple5": ["192.168.1.150", "203.0.113.10", 8080, 80, 6],
+  "window": [1640995800.0, 1640995860.0],
+  "features": {
+    "pkt_cnt_fwd": 25,
+    "pkt_cnt_bwd": 20,
+    "byte_cnt_fwd": 5000,
+    "byte_cnt_bwd": 4000,
+    "fwd_bwd_ratio_pkt": 1.25,
+    "fwd_bwd_ratio_byte": 1.25,
+    "tcp_syn_ratio": 0.04,
+    "tcp_fin_ratio": 0.04,
+    "tcp_rst_ratio": 0.0,
+    "pkt_size_hist": [0.1, 0.4, 0.4, 0.1],
+    "iat_hist": [0.2, 0.3, 0.3, 0.2]
+  },
+  "enriched": {
+    "context_summary": "HTTP session with moderate bidirectional traffic and normal connection patterns",
+    "events": [
+      {
+        "offset_ms": 0.0,
+        "direction": "FWD",
+        "proto": "TCP",
+        "len": 60,
+        "payload_len": 0,
+        "flags": ["SYN"],
+        "tcp_window": 65535,
+        "application": "HTTP connection setup",
+        "text": "TCP SYN for HTTP"
+      },
+      {
+        "offset_ms": 100.0,
+        "direction": "FWD",
+        "proto": "TCP",
+        "len": 200,
+        "payload_len": 150,
+        "flags": ["PSH", "ACK"],
+        "preview": "GET / HTTP/1.1",
+        "application": "HTTP GET request",
+        "text": "HTTP request packet"
+      }
+    ],
+    "event_count": 2,
+    "payload": {
+      "total_len": 8000,
+      "entropy": 5.2,
+      "ascii_ratio": 0.6,
+      "head_ascii": "GET / HTTP/1.1",
+      "head_hex": "474554202f20485454502f312e31",
+      "tail_ascii": "OK",
+      "tail_hex": "4f4b",
+      "truncated": true
+    },
+    "protocols": ["tcp", "http"],
+    "proto_name": "TCP"
+  }
+}

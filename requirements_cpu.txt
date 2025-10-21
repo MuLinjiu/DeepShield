@@ -1,0 +1,11 @@
+# CPU优化版本的依赖 - 不需要CUDA支持
+torch>=2.0.0
+transformers>=4.30.0
+datasets>=2.10.0
+peft>=0.4.0
+accelerate>=0.20.0
+scipy
+numpy
+tqdm
+sentencepiece  # TinyLlama需要
+protobuf  # TinyLlama需要
