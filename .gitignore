@@ -71,6 +71,7 @@ huggingface/
 .DS_Store
 *.swp
 *.swo
+.nfs*
 
 # 测试输出
 test_output/

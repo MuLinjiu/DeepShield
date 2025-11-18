@@ -1,6 +1,6 @@
-# DeepShield LoRA - Network Flow Security Classifier
+# DeepShield - Network Traffic Security Classifier
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/pytorch-2.0+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -8,259 +8,289 @@
 
 ## ✨ 特性
 
-- 🎯 **精确分类**：支持多种网络攻击类型识别（DDoS、端口扫描、暴力破解等）
-- 🧠 **可解释性**：自动生成分类原因说明
+- 🎯 **精确分类**：支持多种网络攻击类型识别（Web Attack、Brute Force、Infiltration等）
+- 🧠 **可解释性**：生成分类原因说明
 - 💡 **参数高效**：使用LoRA技术，只训练少量参数
-- 🖥️ **灵活部署**：支持CPU和GPU训练
-- 📊 **丰富特征**：整合网络流量统计特征和载荷分析
+- 🚀 **灵活模型**：支持Llama-3.1、Qwen2.5/3等多种基座模型
+- 📊 **丰富指标**：详细的per-class precision/recall/f1评估
 
 ---
 
 ## 🚀 快速开始
 
-### GPU训练（推荐）
-
-如果您有NVIDIA GPU（推荐16GB+显存）：
+### 1. 安装依赖
 
 ```bash
-# 克隆仓库
-git clone https://github.com/yourusername/DeepShield.git
-cd DeepShield
-
-# 一键训练
-bash setup_and_train.sh
+pip install -r requirements.txt
 ```
 
-### CPU训练（低资源环境）
+### 2. 配置HuggingFace Token（可选）
 
-⚠️ **注意**：CPU训练需要至少8GB RAM，4GB内存环境建议使用云GPU服务。
+对于公开模型（如Llama-3.1），不需要token。如果使用gated模型，需要设置token：
 
 ```bash
-# 使用CPU优化版本
-bash setup_cpu_training.sh
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑.env文件，填入你的token
+# HF_TOKEN=hf_xxxxxxxxxx
+
+# 或直接设置环境变量
+export HF_TOKEN=your_token_here
+```
+
+### 3. 准备数据
+
+创建平衡训练集（从原始数据集采样20K样本）：
+
+```bash
+python3 create_12h_training_set.py \
+  --input_train data/processed/llm_input_enriched_train.jsonl \
+  --input_val data/processed/llm_input_enriched_val.jsonl \
+  --output_train data/processed/train_12h.jsonl \
+  --output_val data/processed/val_12h.jsonl
+```
+
+创建自然分布测试集（10K样本，保持原始99% BENIGN比例）：
+
+```bash
+python3 create_natural_test_set.py
+```
+
+### 4. 训练模型
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 train_lora_netflow_refined.py \
+  --train_path data/processed/train_12h.jsonl \
+  --val_path data/processed/val_12h.jsonl \
+  --base_model meta-llama/Llama-3.1-8B-Instruct \
+  --out_dir lora-llama31-12h \
+  --epochs 3 \
+  --max_len 1536 \
+  --per_device_bs 2 \
+  --grad_accum 8 \
+  --load_in_4bit \
+  --bf16
+```
+
+### 5. 评估模型
+
+平衡测试集（100样本）：
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 train_lora_netflow_refined.py \
+  --eval_path data/processed/llm_input_enriched_test_sample100.jsonl \
+  --adapter lora-llama31-12h/checkpoint-800 \
+  --base_model meta-llama/Llama-3.1-8B-Instruct \
+  --mode eval
+```
+
+自然分布测试集（10K样本，~99% BENIGN）：
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 train_lora_netflow_refined.py \
+  --eval_path data/processed/llm_input_enriched_test_natural10k.jsonl \
+  --adapter lora-llama31-12h/checkpoint-800 \
+  --base_model meta-llama/Llama-3.1-8B-Instruct \
+  --mode eval
+```
+
+评估Base Model（无LoRA）：
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 train_lora_netflow_refined.py \
+  --eval_path data/processed/llm_input_enriched_test_sample100.jsonl \
+  --base_model meta-llama/Llama-3.1-8B-Instruct \
+  --mode eval
 ```
 
 ---
 
 ## 📊 数据格式
 
-训练数据格式（JSONL）：
+### 输入数据格式（JSONL）
+
 ```json
 {
   "flow_id": 1,
-  "tuple5": ["src_ip", "dst_ip", src_port, dst_port, proto],
-  "window": [start_time, end_time],
-  "features": {...},
-  "enriched": {...},
-  "label": "BENIGN"
+  "tuple5": ["192.168.1.1", "10.0.0.1", 45123, 80, 6],
+  "window": [1234567890.0, 1234567895.0],
+  "features": {
+    "packet_count": 150,
+    "byte_count": 75000,
+    "flow_dur_ms": 5000.0,
+    "tcp_syn_ratio": 0.02,
+    "payload_entropy": 6.5,
+    ...
+  },
+  "enriched": {
+    "protocols": ["HTTP", "TCP"]
+  },
+  "label": "Web Attack - XSS"
+}
+```
+
+### 模型输出格式
+
+```json
+{
+  "label": "Web Attack - XSS",
+  "explanation": "HTTP traffic on port 80 with high packet count (150 packets) and large payload (75KB) showing high ASCII ratio (0.85) indicating text-based content"
 }
 ```
 
 ---
 
-## 📁 项目文件
+## 🎮 支持的模型
+
+### Llama系列
+- `meta-llama/Llama-3.1-8B-Instruct` （推荐）
+- `meta-llama/Llama-2-7b-hf`
+
+### Qwen系列
+- `Qwen/Qwen3-8B-Instruct` （最新）
+- `Qwen/Qwen2.5-7B-Instruct`
+
+### 其他
+- `mistralai/Mistral-7B-Instruct-v0.2`
+
+---
+
+## 📁 项目结构
 
 ```
 DeepShield/
-├── train_cpu_optimized.py          # CPU优化训练程序（当前使用）
-├── setup_cpu_training.sh           # CPU一键训练脚本
-├── train_lora_netflow_refined.py  # GPU版本训练程序
-├── setup_and_train.sh              # GPU一键训练脚本
-├── requirements_cpu.txt            # CPU依赖
-├── requirements.txt                # GPU依赖
-└── data/processed/                 # 训练数据（3.5GB）
+├── train_lora_netflow_refined.py      # 主训练/评估脚本
+├── create_12h_training_set.py         # 创建平衡训练集
+├── create_natural_test_set.py         # 创建自然分布测试集
+├── requirements.txt                    # Python依赖
+├── .env.example                        # 环境变量模板
+├── .gitignore                          # Git忽略配置
+└── data/processed/                     # 数据目录
+    ├── train_12h.jsonl                 # 平衡训练集（20K）
+    ├── val_12h.jsonl                   # 验证集（2K）
+    ├── llm_input_enriched_test_sample100.jsonl  # 测试集（100）
+    └── llm_input_enriched_test_natural10k.jsonl # 自然分布测试集（10K）
 ```
 
 ---
 
-## 💻 CPU训练（当前配置）
+## ⚙️ 训练参数说明
 
-### 方式1：一键启动
-```bash
-bash setup_cpu_training.sh
-```
+### 基础参数
+- `--base_model`: 基座模型名称
+- `--train_path`: 训练数据路径
+- `--val_path`: 验证数据路径
+- `--out_dir`: 输出目录
+- `--adapter`: LoRA adapter路径（eval时使用）
 
-### 方式2：后台运行（推荐）
-```bash
-nohup bash setup_cpu_training.sh > training.log 2>&1 &
-tail -f training.log  # 查看进度
-```
+### LoRA配置
+- `--r`: LoRA rank（默认16）
+- `--alpha`: LoRA alpha（默认32）
+- `--dropout`: LoRA dropout（默认0.05）
 
-### 方式3：快速测试（5分钟）
-```bash
-bash setup_cpu_training.sh --quick-test
-```
+### 训练配置
+- `--epochs`: 训练轮数（默认3）
+- `--lr`: 学习率（默认2e-4）
+- `--per_device_bs`: 每设备batch size（默认1）
+- `--grad_accum`: 梯度累积步数（默认16）
+- `--max_len`: 最大序列长度（默认4096）
 
----
-
-## 🎮 GPU训练（如有GPU服务器）
-
-### 一键启动
-```bash
-bash setup_and_train.sh
-```
-
-### 手动训练
-```bash
-python3 train_lora_netflow_refined.py \
-    --train_path data/processed/llm_input_enriched_train.jsonl \
-    --val_path data/processed/llm_input_enriched_val.jsonl \
-    --out_dir lora-netflow-gpu \
-    --epochs 3
-```
+### 实验性参数
+- `--remove_eos_from_training`: 去掉训练序列的EOS token，鼓励模型生成explanation
+- `--disable_explanation_fallback`: 禁用hard-coded explanation生成fallback
 
 ---
 
-## 📈 训练完成后
+## 📈 评估指标
 
-### 评估模型（CPU版本）
-```bash
-python3 train_cpu_optimized.py \
-    --eval_path data/cpu_test_100.jsonl \
-    --adapter lora-netflow-cpu \
-    --mode eval
+评估时会输出：
+
+### 总体指标
+- Accuracy
+- Macro Precision/Recall/F1
+- Weighted Precision/Recall/F1
+
+### Per-Class指标
+- 每个类别的Precision、Recall、F1、Support
+
+示例输出：
 ```
+============================================================
+Overall Metrics:
+============================================================
+Accuracy:          0.9850
+Macro Precision:   0.8234
+Macro Recall:      0.7891
+Macro F1:          0.8058
+Weighted Precision: 0.9823
+Weighted Recall:    0.9850
+Weighted F1:        0.9836
+Total Samples:      10000
 
-### 评估模型（GPU版本）
-```bash
-python3 train_lora_netflow_refined.py \
-    --eval_path data/processed/llm_input_enriched_test.jsonl \
-    --adapter lora-netflow-gpu \
-    --mode eval
+============================================================
+Per-Class Metrics:
+============================================================
+Class                                Precision     Recall         F1    Support
+--------------------------------------------------------------------------------
+BENIGN                                  0.9900     0.9990     0.9945       9911
+Web Attack - Brute Force                0.7500     0.7500     0.7500         37
+Web Attack - XSS                        0.8333     0.8333     0.8333         27
+...
 ```
-
-### 预测单个样本
-```bash
-python3 train_cpu_optimized.py \
-    --predict_path sample.json \
-    --adapter lora-netflow-cpu \
-    --mode predict
-```
-
----
-
-## ⚙️ CPU vs GPU 对比
-
-| 特性 | CPU版本 | GPU版本 |
-|------|---------|---------|
-| 模型 | TinyLlama-1.1B | Mistral-7B |
-| 训练样本 | 1000条 | 全部（数十万） |
-| 序列长度 | 1024 | 4096 |
-| 训练时间 | 2-4小时 | 4-8小时 |
-| 硬件要求 | 8GB RAM | 16GB+ GPU |
-| 模型效果 | 较低但可用 | 更好 |
 
 ---
 
 ## 🛠️ 技术细节
 
 ### 训练策略
-- 训练时输出：`{"label": "BENIGN", "explanation": ""}`
-- 只对label值进行监督学习
-- 推理时自动生成explanation
+
+训练数据格式：
+```json
+{"label": "Web Attack - XSS", "explanation": "
+```
+
+- Completion在引号未闭合处结束
+- 不包含EOS token（使用 `--remove_eos_from_training`）
+- 鼓励模型在eval时继续生成explanation
 
 ### LoRA配置
-- CPU: rank=8, alpha=16
-- GPU: rank=16, alpha=32
+- Target modules: `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj`
+- 4-bit量化（`load_in_4bit`）
+- BF16混合精度训练
 
-### 优化措施
-- CPU版本使用小模型和少量数据
-- 精确的token级损失掩码
-- 梯度累积减少内存占用
-
----
-
-## 📝 更多信息
-
-- **CPU训练详情**: 查看 `START_HERE_CPU.md`
-- **GPU训练详情**: 查看 `README_refined.md`
+### 学习率调度
+- Scheduler: Cosine with warmup
+- Warmup steps: 100
+- Learning rate: 2e-4
 
 ---
 
-## 🐛 问题排查
+## 🐛 常见问题
 
-### CPU训练太慢
-- 减少数据：修改脚本中的`head -n 1000`为`head -n 100`
-- 减少轮数：`--epochs 1`
-- 减少序列长度：`--max_len 512`
-
-### 内存不足
-- 降低batch size（已经是1）
-- 减少序列长度
-- 减少训练样本
-
-### 依赖安装失败
+### 1. HuggingFace Token错误
 ```bash
-# 单独安装CPU版PyTorch
-python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-python3 -m pip install transformers datasets peft accelerate
+# 设置环境变量
+export HF_TOKEN=your_token_here
+
+# 或使用.env文件
+cp .env.example .env
+# 编辑.env填入token
 ```
 
----
+### 2. CUDA Out of Memory
+- 减少 `--per_device_bs`（尝试1）
+- 增加 `--grad_accum`（尝试16或32）
+- 减少 `--max_len`（尝试1024或512）
+- 使用4-bit量化（`--load_in_4bit`）
 
-## 🏗️ 架构说明
-
-### 训练策略
-
-本项目采用创新的**部分监督训练**策略：
-
-1. **训练阶段**：输出格式为 `{"label": "DDoS", "explanation": ""}`
-   - 只对`label`字段的值进行损失计算
-   - `explanation`字段为空，不参与训练
-
-2. **推理阶段**：模型自动补全 `explanation`
-   - 输出：`{"label": "DDoS", "explanation": "检测到大量SYN包..."}`
-
-这种方法使模型既学会分类，又能生成解释。
-
-### 模型选择
-
-| 环境 | 模型 | 参数量 | 显存/内存 |
-|------|------|--------|----------|
-| GPU | Mistral-7B-Instruct | 7B | 16GB+ |
-| CPU | TinyLlama-1.1B-Chat | 1.1B | 8GB+ |
-
----
-
-## 📂 项目结构
-
-```
-DeepShield/
-├── train_lora_netflow_refined.py  # GPU训练程序
-├── train_cpu_optimized.py         # CPU训练程序
-├── setup_and_train.sh              # GPU一键脚本
-├── setup_cpu_training.sh           # CPU一键脚本
-├── requirements.txt                # GPU依赖
-├── requirements_cpu.txt            # CPU依赖
-├── .gitignore                      # Git忽略配置
-└── data/                           # 数据目录（需自备）
-    ├── processed/
-    │   ├── train.jsonl
-    │   ├── val.jsonl
-    │   └── test.jsonl
-    └── sample_*.jsonl             # 示例数据
-```
-
----
-
-## 📝 引用
-
-如果您在研究中使用了本项目，请引用：
-
-```bibtex
-@software{deepshield2025,
-  title={DeepShield: Network Flow Security Classifier with LoRA},
-  author={Your Name},
-  year={2025},
-  url={https://github.com/yourusername/DeepShield}
-}
-```
+### 3. 训练太慢
+- 增加 `--per_device_bs`（如果显存允许）
+- 减少 `--grad_accum`
+- 使用更少数据或更少epochs
 
 ---
 
 ## 📄 License
 
-本项目采用 MIT License - 详见 [LICENSE](LICENSE) 文件
+MIT License
 
 ---
 
@@ -273,7 +303,3 @@ DeepShield/
 ## ⚠️ 免责声明
 
 本工具仅用于安全研究和教育目的。使用者需遵守当地法律法规。
-
----
-
-**推荐环境：GPU服务器（Google Colab / AWS / 云服务器）** 🚀
