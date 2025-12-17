@@ -1,0 +1,12 @@
+window_sec: 2.0
+stride_sec: 1.0
+pkt_size_bins: [0, 64, 128, 256, 512, 1024, 1518, 9000]
+iat_bins_ms: [0, 0.1, 1, 5, 10, 50, 100, 500]
+clip_pkt_len: 9000
+clip_iat_ms: 10000
+compute_standard: true
+compute_rich: true
+payload_head_bytes: 1024
+payload_tail_bytes: 1024
+max_events_per_window: 10
+context_windows_sec: [10.0, 60.0]

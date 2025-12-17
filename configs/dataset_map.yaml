@@ -1,0 +1,52 @@
+CICIDS2017:
+  label_column: label
+  start_time_column: ts_start
+  end_time_column: ts_end
+  timezone: UTC
+  capture_id_column: capture_id
+  benign_label: BENIGN
+  attack_labels:
+    - Web Attack - Brute Force
+    - Web Attack - XSS
+    - Web Attack - Sql Injection
+    - Infiltration
+  ip_columns:
+    src: src_ip
+    dst: dst_ip
+  port_columns:
+    src: src_port
+    dst: dst_port
+  protocol_column: protocol
+  flow_id_column: flow_id
+  timestamp_dayfirst: true
+  default_time_offset_sec: 0
+  time_offset_candidates_sec: [10800, 54000]
+
+UNSWNB15:
+  label_column: label
+  start_time_column: start_time
+  end_time_column: end_time
+  timezone: UTC
+  capture_id_column: capture_id
+  benign_label: Normal
+  attack_labels:
+    - Fuzzers
+    - Analysis
+    - Backdoor
+    - DoS
+    - Exploits
+    - Generic
+    - Reconnaissance
+    - Shellcode
+    - Worms
+  ip_columns:
+    src: src_ip
+    dst: dst_ip
+  port_columns:
+    src: src_port
+    dst: dst_port
+  protocol_column: protocol
+  flow_id_column: flow_id
+  timestamp_dayfirst: false
+  default_time_offset_sec: 0
+  time_offset_candidates_sec: []

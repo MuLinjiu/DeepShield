@@ -55,6 +55,11 @@ data/processed/*.jsonl
 data/*.jsonl
 *.jsonl
 data/cpu_*.jsonl
+data/raw/
+data/raw/**
+data/processed/**
+processed/
+processed/**
 
 # 保留示例数据结构
 !data/sample_*.jsonl
@@ -98,3 +103,4 @@ wandb/
 
 # 项目特定
 PROJECT_STATUS.txt
+

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/llm_struct_schema.json",
+  "title": "Structured Flow Window Record",
+  "description": "LLM-ready flow-window record with structured features only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "flow_id",
+    "tuple5",
+    "window",
+    "features",
+    "label"
+  ],
+  "properties": {
+    "flow_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Sequential identifier within the JSONL slice (1-based)."
+    },
+    "tuple5": {
+      "type": "array",
+      "description": "Canonical (src_ip, dst_ip, src_port, dst_port, proto) describing the flow.",
+      "prefixItems": [
+        { "type": "string", "description": "Source IP address." },
+        { "type": "string", "description": "Destination IP address." },
+        { "type": "integer", "description": "Source transport port (0-65535)." },
+        { "type": "integer", "description": "Destination transport port (0-65535)." },
+        { "type": "integer", "description": "IP protocol number (e.g., 6=TCP)." }
+      ],
+      "items": false,
+      "minItems": 5
+    },
+    "window": {
+      "type": "array",
+      "description": "Flow window start and end timestamps (seconds since epoch).",
+      "prefixItems": [
+        { "type": "number", "description": "Window start timestamp." },
+        { "type": "number", "description": "Window end timestamp." }
+      ],
+      "items": false,
+      "minItems": 2
+    },
+    "label": {
+      "type": "string",
+      "description": "Ground-truth class label assigned after alignment (e.g., BENIGN, attack name, unknown)."
+    },
+    "features": {
+      "type": "object",
+      "description": "Numeric flow features computed within the window.",
+      "required": [
+        "pkt_cnt_fwd",
+        "pkt_cnt_bwd",
+        "byte_cnt_fwd",
+        "byte_cnt_bwd",
+        "fwd_bwd_ratio_pkt",
+        "fwd_bwd_ratio_byte",
+        "tcp_syn_ratio",
+        "tcp_fin_ratio",
+        "tcp_rst_ratio"
+      ],
+      "properties": {
+        "pkt_cnt_fwd": { "type": ["integer", "number"], "description": "Forward-direction packet count." },
+        "pkt_cnt_bwd": { "type": ["integer", "number"], "description": "Backward-direction packet count." },
+        "byte_cnt_fwd": { "type": ["integer", "number"], "description": "Forward-direction byte count." },
+        "byte_cnt_bwd": { "type": ["integer", "number"], "description": "Backward-direction byte count." },
+        "fwd_bwd_ratio_pkt": { "type": ["integer", "number"], "description": "Forward/backward packet ratio with safe division." },
+        "fwd_bwd_ratio_byte": { "type": ["integer", "number"], "description": "Forward/backward byte ratio with safe division." },
+        "tcp_syn_ratio": { "type": ["integer", "number"], "description": "Share of TCP packets carrying the SYN flag." },
+        "tcp_fin_ratio": { "type": ["integer", "number"], "description": "Share of TCP packets carrying the FIN flag." },
+        "tcp_rst_ratio": { "type": ["integer", "number"], "description": "Share of TCP packets carrying the RST flag." },
+        "pkt_size_hist": {
+          "type": "array",
+          "description": "L2-normalised histogram across packet-length bins.",
+          "items": { "type": "number" }
+        },
+        "iat_hist": {
+          "type": "array",
+          "description": "L2-normalised histogram across inter-arrival-time bins (milliseconds).",
+          "items": { "type": "number" }
+        }
+      },
+      "additionalProperties": {
+        "description": "Additional numeric or categorical flow features.",
+        "type": ["number", "integer", "string", "boolean", "array", "null"]
+      }
+    }
+  }
+}
